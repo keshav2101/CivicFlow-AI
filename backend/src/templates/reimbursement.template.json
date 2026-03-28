@@ -1,0 +1,6 @@
+{
+  "name": "REIMBURSEMENT",
+  "version": "1.0",
+  "content": "Reimbursement Claim\nAmount: {{amount}}\nCategory: {{category}}",
+  "variables": ["amount", "category"]
+}

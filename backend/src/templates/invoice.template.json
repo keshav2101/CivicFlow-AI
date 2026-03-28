@@ -1,0 +1,6 @@
+{
+  "name": "INVOICE",
+  "version": "1.0",
+  "content": "Invoice Document\nAmount due: {{amount}}",
+  "variables": ["amount"]
+}

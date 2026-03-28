@@ -1,0 +1,6 @@
+{
+  "name": "GRIEVANCE",
+  "version": "1.0",
+  "content": "Grievance Acknowledgement\nWe received your complaint regarding: {{category}}\nWe take this seriously and will investigate.",
+  "variables": ["category"]
+}

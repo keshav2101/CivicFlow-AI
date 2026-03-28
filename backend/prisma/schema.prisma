@@ -1,0 +1,221 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  tenantId  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users        User[]
+  tickets      Ticket[]
+  routingRules RoutingRule[]
+  auditLogs    AuditLog[]
+  metricsSnapshots MetricsSnapshot[]
+  learningEvents   LearningEvent[]
+}
+
+model User {
+  id             String       @id @default(uuid())
+  email          String       @unique
+  name           String?
+  role           Role         @default(USER)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  ticketsRequested Ticket[]
+  approvals        Approval[]
+  auditLogs        AuditLog[]
+  clauseRevisions  ClauseRevision[]
+}
+
+enum Role {
+  USER
+  APPROVER
+  ADMIN
+  SYSTEM
+}
+
+model Ticket {
+  id          String      @id @default(uuid())
+  type        RequestType
+  status      TicketStatus @default(PENDING)
+  amount      Float?
+  urgency     Urgency     @default(MEDIUM)
+  category    String?
+  rawText     String?
+  explanation Json?
+  
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  requesterId    String
+  requester      User         @relation(fields: [requesterId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  approvals   Approval[]
+  documents   Document[]
+  slaEvents   SLAEvent[]
+}
+
+enum RequestType {
+  REIMBURSEMENT
+  INVOICE
+  MOU
+  GRIEVANCE
+}
+
+enum TicketStatus {
+  PENDING
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  ESCALATED
+}
+
+enum Urgency {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model RoutingRule {
+  id                  String      @id @default(uuid())
+  organizationId      String
+  organization        Organization @relation(fields: [organizationId], references: [id])
+  requestType         RequestType
+  approverRole        Role
+  fallbackRole        Role?
+  slaThresholdMinutes Int         @default(1440)
+  createdAt           DateTime    @default(now())
+}
+
+model Approval {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id])
+  approverId  String
+  approver    User     @relation(fields: [approverId], references: [id])
+  status      ApprovalStatus @default(PENDING)
+  stepIndex   Int
+  feedback    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Document {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id])
+  templateId  String?
+  content     String?  // Final or compiled content
+  status      DocumentStatus @default(DRAFT)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clauses     Clause[]
+}
+
+enum DocumentStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  EXECUTED
+}
+
+model Clause {
+  id                 String   @id @default(uuid())
+  documentId         String
+  document           Document @relation(fields: [documentId], references: [id])
+  text               String
+  statusPartyA       ClauseStatus @default(PENDING)
+  statusPartyB       ClauseStatus @default(PENDING)
+  updatedAt          DateTime @updatedAt
+  createdAt          DateTime @default(now())
+
+  revisions          ClauseRevision[]
+}
+
+model ClauseRevision {
+  id        String   @id @default(uuid())
+  clauseId  String
+  clause    Clause   @relation(fields: [clauseId], references: [id])
+  version   Int
+  text      String
+  reason    String?
+  explanation Json?
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+
+enum ClauseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  action         String
+  actorId        String?
+  actor          User?    @relation(fields: [actorId], references: [id])
+  targetId       String?
+  details        Json?
+  timestamp      DateTime @default(now())
+}
+
+model SLAEvent {
+  id           String   @id @default(uuid())
+  ticketId     String
+  ticket       Ticket   @relation(fields: [ticketId], references: [id])
+  stepIndex    Int
+  breached     Boolean  @default(false)
+  delayMinutes Int      @default(0)
+  createdAt    DateTime @default(now())
+}
+
+model MetricsSnapshot {
+  id                      String   @id @default(uuid())
+  organizationId          String
+  organization            Organization @relation(fields: [organizationId], references: [id])
+  timestamp               DateTime @default(now())
+  routingAccuracy         Float
+  avgApprovalTimeMinutes  Float
+  slaComplianceRate       Float
+  clauseResolutionRate    Float
+  manualInterventionRate  Float
+  queueProcessingLatencyMs Float
+}
+
+model LearningEvent {
+  id              String   @id @default(uuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  ruleBefore      Json?
+  ruleAfter       Json?
+  reasonForChange String
+  confidenceScore Float
+  createdAt       DateTime @default(now())
+}
+

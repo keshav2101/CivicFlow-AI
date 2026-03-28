@@ -1,0 +1,23 @@
+openapi: 3.0.0
+info:
+  title: CivicFlow AI Protocol
+  version: 2.0.0
+  description: Evaluation Engine and Async Messaging Worker Webhooks.
+servers:
+  - url: https://api.civicflow.ai/v1
+paths:
+  /metrics/summary:
+    get:
+      summary: Retrieve the latest aggregated operational metrics snapshot.
+      responses:
+        '200':
+          description: A structural JSON evaluating routing accuracy, SLA rates, and processing delays.
+  /explainability/ticket/{id}:
+    get:
+      summary: Retrieve AI justification matrices for dynamic policy evaluations.
+      responses:
+        '200':
+          description: The chain-of-thought outputs detailing routing overrides and confidence scores.
+  /system/health:
+    get:
+      summary: Database, queue, and abstract service healthcheck.

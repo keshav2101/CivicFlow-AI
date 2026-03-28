@@ -1,0 +1,6 @@
+{
+  "name": "MOU",
+  "version": "1.0",
+  "content": "Memorandum of Understanding\nBetween {{organization}} and {{requester}}.\n\nClause 1: Scope of Work.\nClause 2: Payment Terms of {{amount}}.\nClause 3: Confidentiality and Liability.",
+  "variables": ["organization", "requester", "amount"]
+}
