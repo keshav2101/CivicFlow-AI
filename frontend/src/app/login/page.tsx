@@ -6,9 +6,10 @@ import { motion } from 'framer-motion';
 import { Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
 
 const DEMO_ACCOUNTS = [
-  { role: 'Admin',   email: 'admin@demo.civicflow.ai',   password: 'admin123', color: 'from-violet-500 to-indigo-600' },
-  { role: 'Finance', email: 'finance@demo.civicflow.ai', password: 'fin123',   color: 'from-emerald-500 to-teal-600'  },
-  { role: 'Legal',   email: 'legal@demo.civicflow.ai',   password: 'leg123',   color: 'from-blue-500 to-cyan-600'     },
+  { name: 'Sarah Jenkins', role: 'Admin',   email: 'admin@demo.civicflow.ai',   password: 'admin123', color: 'from-violet-500 to-indigo-600' },
+  { name: 'Jordan Finance', role: 'Finance', email: 'finance@demo.civicflow.ai', password: 'fin123',   color: 'from-emerald-500 to-teal-600'  },
+  { name: 'Morgan Legal', role: 'Legal',   email: 'legal@demo.civicflow.ai',   password: 'leg123',   color: 'from-blue-500 to-cyan-600'     },
+  { name: 'Sam Jenkins', role: 'Researcher', email: 'researcher@demo.civicflow.ai', password: 'user123', color: 'from-amber-500 to-orange-600' },
 ];
 
 export default function LoginPage() {
@@ -26,6 +27,7 @@ export default function LoginPage() {
     await new Promise(r => setTimeout(r, 900));
     const match = DEMO_ACCOUNTS.find(a => a.email === email && a.password === password);
     if (match) {
+      localStorage.setItem('civicflow_user', JSON.stringify({ name: match.name, role: match.role, email: match.email }));
       router.push('/');
     } else {
       setError('Invalid credentials. Try a demo account below.');
@@ -37,6 +39,7 @@ export default function LoginPage() {
     setEmail(acc.email);
     setPassword(acc.password);
     setLoading(true);
+    localStorage.setItem('civicflow_user', JSON.stringify({ name: acc.name, role: acc.role, email: acc.email }));
     await new Promise(r => setTimeout(r, 700));
     router.push('/');
   };

@@ -42,19 +42,26 @@ export async function runThinkPipeline(text: string, orgId: string): Promise<Thi
 
 /**
  * Evaluates extracted data against organization-specific hard policies.
+ * Implementing 'Agentic Automation': Simple tickets < $20 are auto-approved.
  */
 async function evaluatePolicies(data: ThinkResult, orgId: string): Promise<ThinkResult['suggestedAction']> {
-  // Example Policy: Auto-escalate if amount > $500 for non-admins
-  if (data.type === 'REIMBURSEMENT' && data.amount && data.amount > 500) {
+  // 1. Agentic Automation: Auto-approve simple, low-value reimbursements
+  if (data.type === 'REIMBURSEMENT' && data.amount && data.amount < 20) {
+    console.log(`[PolicyEngine] Auto-approving simple reimbursement: $${data.amount}`);
+    return 'APPROVE';
+  }
+
+  // 2. High Value Escalation: Over $5000 always needs Head of Operations
+  if (data.amount && data.amount > 5000) {
+    console.log(`[PolicyEngine] Escalating high-value ${data.type}: $${data.amount}`);
     return 'ESCALATE';
   }
 
-  // Example Policy: High urgency grievances always need immediate human review
-  if (data.type === 'GRIEVANCE' && data.urgency === 'HIGH') {
+  // 3. Complex Requests: MoUs and Grievances ALWAYS require human review
+  if (data.type === 'MOU' || data.type === 'GRIEVANCE') {
     return 'REVIEW';
   }
 
-  // Example Policy: Low value reimbursements might be auto-approvable in a real system
-  // but for CivicFlow we always suggest REVIEW for the dashboard.
+  // Default: Human Review
   return 'REVIEW';
 }

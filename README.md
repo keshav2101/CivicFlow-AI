@@ -1,124 +1,89 @@
-<div align="center">
-  <img src="frontend/public/globe.svg" alt="CivicFlow AI Logo" width="80" height="80">
-  <h1 align="center">CivicFlow AI</h1>
-  <p align="center">
-    <strong>An Autonomous, Omni-Channel Operations Agent for Zero-IT Organizations</strong>
-  </p>
-  <p align="center">
-    <a href="https://github.com/keshav2101/CivicFlow-AI/stargazers"><img src="https://img.shields.io/github/stars/keshav2101/CivicFlow-AI?style=for-the-badge&color=indigo" alt="Stars Badge"/></a>
-    <a href="https://github.com/keshav2101/CivicFlow-AI/network/members"><img src="https://img.shields.io/github/forks/keshav2101/CivicFlow-AI?style=for-the-badge&color=emerald" alt="Forks Badge"/></a>
-    <a href="https://github.com/keshav2101/CivicFlow-AI/issues"><img src="https://img.shields.io/github/issues/keshav2101/CivicFlow-AI?style=for-the-badge&color=rose" alt="Issues Badge"/></a>
-    <a href="https://github.com/keshav2101/CivicFlow-AI/pulls"><img src="https://img.shields.io/github/issues-pr/keshav2101/CivicFlow-AI?style=for-the-badge&color=violet" alt="Pull Requests Badge"/></a>
-  </p>
-</div>
+# CivicFlow-AI: Agentic Administrative Workflow Automation 🏛️🤖
 
-<br />
-
-## 🌟 The Problem: The Chaos of Zero-IT Operations
-Community organizations, college clubs, and NGOs manage multi-thousand dollar operations entirely through unstructured, fragmented channels: **WhatsApp groups, noisy email threads, and localized verbal agreements.**
-
-Without dedicated IT teams to configure rigid ticketing software, critical administrative processes rapidly decay:
-- ❌ **Lost Requests**: Reimbursements and vendor invoices are buried rapidly into group chats.
-- ❌ **No SLAs**: Approvals are delayed indefinitely due to absent structure.
-- ❌ **Blind Liability**: There is zero cryptographic audit trail for financial distributions.
-
-## 🚀 The Solution: The CivicFlow Paradigm
-**CivicFlow AI** introduces a strictly modeled, autonomous operations layer requiring **zero user onboarding**. Members keep sending unstructured text via their native apps (WhatsApp, Email), and CivicFlow's *Generative AI Policy Engine* intercepts the traffic. 
-
-The AI extracts entities, maps intents, enforces hard policy guardrails (e.g. Reject requests >$500), and injects clean JSON objects directly into a sophisticated, Stripe-inspired dashboard queue for single-click Administrative approval.
+CivicFlow-AI is a next-generation "Thinking" administrative engine designed to automate organizational workflows. It bridges the gap between unstructured communication (WhatsApp, Web, Email) and structured organizational policy through autonomous AI agents and hierarchical human review.
 
 ---
 
-## 🏛️ System Architecture
+## 🌟 Key Features
 
-### 1. Omni-Channel Ingestion Pipelines
-Ingests unstructured text from disparate edge points to establish initial context.
-- **WhatsApp API Adapter**: Parses messages, receipts, and photos native to group chats.
-- **MailHook Server**: Decodes unstructured inbound threads and maps CC/BCC permissions natively.
+### 🧠 1. Thinking-First Nerve Engine
+Powered by **Gemini 2.0 Thinking** and **Google Search Grounding**, the system doesn't just classify—it reasons.
+- **Deep Reasoning**: Every classification is backed by a transparent chain-of-thought trace (`ThinkingConfig`).
+- **Real-Time Verification**: The AI uses live search results to verify vendor legitimacy and legal standards.
 
-### 2. Multi-Agent Neuro-Engine
-Routes data via an internal mesh of highly optimized sub-LLMs.
-- **Entity Extraction**: Plucks values natively (`amount: 250`, `urgency: 4`, `currency: USD`).
-- **Intent Classifier**: Pushes bounds down 4 structural pillars (Reimbursement, Invoice, MoU, Grievance).
-- **Immutable Explainability**: Pushes its Chain-of-Thought (CoT) reasoning out to PostgreSQL.
+### 🤖 2. Agentic Automation Pipeline
+The platform implements an "Autonomous Threshold" for high-velocity operations.
+- **Auto-Resolution**: Small tasks (e.g., Student Reimbursements < $20.00) are instantly approved by the System Agent.
+- **Intelligent Triage**: Complex requests are automatically routed to the correct hierarchical role (Treasurer, Head of Ops, or Admin) based on extracted value and policy.
 
-### 3. Human-in-the-Loop Operations Dashboard (Frontend)
-A high-density Next.js web ecosystem providing immediate validation states.
-- **Zero-Click Live Metrics**: Interactive, animated KPIs tracking total system volume.
-- **Clause Negotiator (MoU)**: Visual side-by-side legal text differ for dynamically generative contract agreements.
-- **Tamper-Proof Audit Vault**: A centralized read-only ledger capturing cryptographic sequences of all AI operations.
+### ✍️ 3. Generative Clause Negotiator
+An interactive legal workspace for MoUs and Partnerships.
+- **Redrafting**: Human experts can suggest constraints (e.g., "Add mutual termination"), and the AI re-drafts the legal text in real-time.
+- **Version Control**: Full audit trail of original vs. AI-suggested vs. human-approved clauses.
 
----
-
-## 💻 Tech Stack
-| Tier | Technology Suite | Purpose |
-| :--- | :--- | :--- |
-| **Frontend** | React, Next.js 15 (App Router), Tailwind V4 | High-density Web Application Interface |
-| **Backend** | Node.js (TypeScript) & Express | Scalable microservices handling ingress ingestion |
-| **Intelligence**| Google Gemini 1.5 Pro | Structured intent mapping and entity extraction |
-| **Voice** | Deepgram Nova-2 | High-accuracy audio transcription |
-| **Database** | PostgreSQL + Prisma ORM | Relational typing schemas and JSON store |
+### 📊 4. Real-Time Operations Dashboard
+A data-driven command center for administrators.
+- **Automation KPIs**: Live tracking of "Automation Rate" and "SLA Compliance."
+- **Hierarchical Views**: Personalized Dashboards for Admin (Alex), Treasurer (Jordan), and Head of Operations (Morgan).
 
 ---
 
-## 🛠⚙️ Repository Structure
-This monolithic repository natively isolates the API backend from the Application Dashboard client using decoupled modular environments.
+## 🛠️ Technical Stack
 
-```bash
-📦 CivicFlow-AI
- ┣ 📂 backend          # Node.js/Express Native Endpoints
- ┃ ┣ 📂 prisma         # Relational Postgres Schema Definitions
- ┃ ┣ 📂 src            
- ┃ ┃ ┣ 📂 api          # OpenAPI standard REST Controllers
- ┃ ┃ ┣ 📂 channels     # Webhooks (WhatsApp, Email)
- ┃ ┃ ┣ 📂 services     # Localized AI Workflow Engine Modules
- ┃ ┃ ┗ 📜 index.ts     # Microservice Booter
- ┣ 📂 frontend         # Next.js Application Client
- ┃ ┣ 📂 public         # Native SVGs & Assets
- ┃ ┣ 📂 src
- ┃ ┃ ┣ 📂 app          # App Routing Layer (Dashboard, Login, Tickets)
- ┃ ┃ ┣ 📂 components   # Reusable Atomic UI Blocks (Navbar, Sidebar)
- ┃ ┃ ┗ 📂 lib          # Static Client Utilities & Demo Vectors (data)
- ┃ ┣ 📜 next.config.ts # Core Pipeline Config
- ┃ ┗ 📜 package.json   # NPM Executables
+- **Frontend**: Next.js 15 (App Router), Tailwind CSS V4, Framer Motion, SWR.
+- **Backend**: Node.js & Express (TypeScript), Prisma ORM (PostgreSQL).
+- **AI Infrastructure**: `@google/genai` (Gemini 2.0/3.0), Deepgram (Voice Transcription).
+- **Task Queue**: Redis-backed BullMQ for asynchronous classification and negotiation.
+
+---
+
+## 🚀 Getting Started
+
+### 1. Environment Configuration
+Create a `.env` file in the `/backend` directory:
+```env
+GEMINI_API_KEY=your_google_ai_key
+DEEPGRAM_API_KEY=your_deepgram_key
+DATABASE_URL=postgresql://user:pass@localhost:5432/civicflow_db
+REDIS_URL=redis://localhost:6379
 ```
 
----
-
-## 🏃 Getting Started (Local Development)
-
-Booting CivicFlow UI in a local environment is streamlined for instant feedback loops. Ensure you have **Node 20+** and **NPM 10+** installed.
-
-### 1. Clone the Source
+### 2. Database & Seeding
+Initialize the organizational hierarchy (Admin, Treasurer, Head of Ops):
 ```bash
-git clone https://github.com/keshav2101/CivicFlow-AI.git
-cd CivicFlow-AI
-```
-
-### 2. Configure the Frontend Environment
-Connect to the local interface environment and orchestrate dependencies.
-```bash
-cd frontend
+cd backend
 npm install
+npx prisma migrate dev
+npm run seed
 ```
 
-### 3. Launch the Application Server
-Trigger the native `.next` engine build for local hot-module reloading.
+### 3. Run Development Servers
 ```bash
+# Backend
+npm run dev
+
+# Frontend (in separate terminal)
 npm run dev
 ```
 
-The system will report live on [`http://localhost:3000`](http://localhost:3000). The native admin dashboard can be accessed directly by simulating a demo login natively.
+---
+
+## 🧪 Testing the Workflow
+
+Use the **[Testing Guide](file:///Users/sukhadkaur/.gemini/antigravity/brain/d36b17ff-6d9a-47a7-adc4-014a2addb171/testing_guide.md)** to verify the agentic capabilities:
+
+1.  **Manual Ingestion (Mock)**:
+    ```bash
+    curl -X POST http://localhost:4000/ingest/mock \
+      -H "Content-Type: application/json" \
+      -d '{"text": "Refunding $12.50 for a student society coffee meeting."}'
+    ```
+2.  **Verify Results**: Open **[http://localhost:3000](http://localhost:3000)** and observe the system's "Thoughts" and autonomous approval.
 
 ---
 
-## 🐳 Docker Deployment (Recommended)
-For a streamlined setup using Docker containers for PostgreSQL and Redis:
-See the **[run.md](./run.md)** file for step-by-step Docker instructions.
-
----
-
-## 📜 Open Source License
-Distributed natively under the MIT License. See `LICENSE` for more explicit configuration thresholds.
-
-<p align="center">Built with 🧠 and ❤️ for Zero-IT Operations teams globally.</p>
+## 🏗️ Organizational Roles
+- **Alex (Admin)**: Full system oversight.
+- **Jordan (Treasurer)**: Financial policy enforcement.
+- **Morgan (Head of Ops)**: High-value legal and operational review.
+- **CivicFlow AI**: Autonomous agent for low-value task resolution.

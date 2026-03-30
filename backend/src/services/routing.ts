@@ -1,4 +1,5 @@
 import { PrismaClient, RequestType, Urgency } from '@prisma/client';
+import { notifyTicketGenerated, notifyTicketUpdate } from './notification';
 
 const prisma = new PrismaClient();
 
@@ -11,6 +12,7 @@ export async function createTicketAndRoute(
     urgency: Urgency;
     category?: string;
     rawText: string;
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ESCALATED';
   }
 ) {
   // 1. Fetch Routing Rule for the specific request type
@@ -47,6 +49,7 @@ export async function createTicketAndRoute(
       urgency: extractedData.urgency,
       category: extractedData.category,
       rawText: extractedData.rawText,
+      status: extractedData.status || 'PENDING',
       // Create the approval relation
       approvals: {
         create: {
@@ -65,6 +68,11 @@ export async function createTicketAndRoute(
       approvals: true,
       slaEvents: true
     }
+  });
+
+  // Notify stakeholders
+  await notifyTicketGenerated(ticket.id, ticket.type, ticket.urgency).catch(err => {
+    console.error('Failed to send ticket generation notification:', err);
   });
 
   return ticket;
@@ -104,6 +112,10 @@ export async function escalateTicket(ticketId: string, currentStepIndex: number)
       const updatedTicket = await prisma.ticket.update({
         where: { id: ticketId },
         data: { status: 'ESCALATED' }
+      });
+      // Notify stakeholders
+      await notifyTicketUpdate(ticketId, 'ESCALATED').catch(err => {
+        console.error('Failed to send ticket escalation notification:', err);
       });
       return updatedTicket;
     }

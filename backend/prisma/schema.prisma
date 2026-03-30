@@ -144,6 +144,7 @@ model Clause {
   id                 String   @id @default(uuid())
   documentId         String
   document           Document @relation(fields: [documentId], references: [id])
+  title              String?
   text               String
   statusPartyA       ClauseStatus @default(PENDING)
   statusPartyB       ClauseStatus @default(PENDING)

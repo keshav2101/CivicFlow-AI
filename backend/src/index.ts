@@ -33,6 +33,6 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, async () => {
   console.log(`CivicFlow API listening on port ${PORT}`);
   
-  // Initialize Omni-Channel Listeners
-  await TelegramAdapter.init();
+  // Omni-Channel Listeners (DEFERRED)
+  // await TelegramAdapter.init();
 });

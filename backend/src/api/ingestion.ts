@@ -42,4 +42,22 @@ router.post('/web', async (req, res) => {
   }
 });
 
+router.post('/mock', async (req, res) => {
+  try {
+    const { text } = req.body;
+    await IngestionService.ingestEvent({
+      id: `mock-${Date.now()}`,
+      channel: 'WEB',
+      senderId: 'mock-tester',
+      rawText: text || 'Mock manual ingestion',
+      timestamp: new Date(),
+      metadata: { source: 'curl' }
+    });
+    res.status(200).send('Mock event enqueued in classification queue');
+  } catch (error) {
+    console.error('Error processing Mock ingestion:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 export default router;

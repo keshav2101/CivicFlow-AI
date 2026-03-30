@@ -1,8 +1,20 @@
 'use client';
 
 import { Search, Bell, Menu } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export default function Navbar() {
+  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('civicflow_user');
+    if (saved) {
+      setUser(JSON.parse(saved));
+    }
+  }, []);
+
+  const displayName = user?.name || 'Sarah Jenkins';
+  const displayRole = user?.role || 'Admin';
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 flex-shrink-0 z-10 sticky top-0 shadow-sm shadow-slate-100/50">
        <div className="flex items-center flex-1">
@@ -31,10 +43,10 @@ export default function Navbar() {
           <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
           
           <button className="flex items-center gap-3 hover:bg-slate-50 p-1.5 rounded-full pr-3 transition-colors ml-2 border border-transparent hover:border-slate-200">
-             <img src="https://ui-avatars.com/api/?name=Sarah+Jenkins&background=6366f1&color=fff&bold=true" alt="User Profile" className="w-8 h-8 rounded-full shadow-sm" />
+             <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=6366f1&color=fff&bold=true`} alt="User Profile" className="w-8 h-8 rounded-full shadow-sm" />
              <div className="hidden md:flex flex-col items-start leading-tight">
-                <span className="text-sm font-semibold text-slate-700">Sarah Jenkins</span>
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Admin</span>
+                <span className="text-sm font-semibold text-slate-700">{displayName}</span>
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">{displayRole}</span>
              </div>
           </button>
        </div>

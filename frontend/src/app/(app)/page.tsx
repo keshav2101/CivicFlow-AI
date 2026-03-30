@@ -89,6 +89,17 @@ const TYPE_LABEL: Record<string, string> = {
 export default function Dashboard() {
   const { data: tickets, error: ticketsErr } = useSWR(API_ROUTES.TICKETS, fetcher, { refreshInterval: 5000 });
   const { data: metrics, error: metricsErr } = useSWR(API_ROUTES.METRICS_SUMMARY, fetcher, { refreshInterval: 10000 });
+  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('civicflow_user');
+    if (saved) {
+      setUser(JSON.parse(saved));
+    }
+  }, []);
+
+  const displayName = user?.name || 'Alex';
+  const displayRole = user?.role || 'Admin';
   
   const [loading, setLoading]       = useState(true);
   const [activeBar, setActiveBar]   = useState<number | null>(null);
@@ -141,7 +152,7 @@ export default function Dashboard() {
       <motion.div initial={{ opacity:0, y:-12 }} animate={{ opacity:1, y:0 }} className="flex items-end justify-between">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Good afternoon, <span className="text-indigo-600">Sarah</span> 👋
+            Good afternoon, <span className="text-indigo-600">{displayName} ({displayRole})</span> 👋
           </h1>
           <p className="text-slate-500 mt-1">Here's your operations snapshot for today.</p>
         </div>

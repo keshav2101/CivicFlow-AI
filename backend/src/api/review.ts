@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { negotiationQueue } from '../workers/queues';
+import { notifyTicketUpdate } from '../services/notification';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -16,7 +17,17 @@ router.get('/tickets', async (req, res) => {
             approver: true
           }
         },
-        documents: true
+        documents: {
+          include: {
+            clauses: {
+              include: {
+                revisions: {
+                  orderBy: { version: 'desc' }
+                }
+              }
+            }
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc'
@@ -37,6 +48,12 @@ router.post('/approve', async (req, res) => {
     
     await prisma.approval.update({ where: { id: approval.id }, data: { status: 'APPROVED' } });
     await prisma.ticket.update({ where: { id: ticketId }, data: { status: 'APPROVED' } });
+    
+    // Notify stakeholders
+    await notifyTicketUpdate(ticketId, 'APPROVED').catch(err => {
+      console.error('Failed to send ticket update notification:', err);
+    });
+
     res.status(200).send('Approved successfully');
   } catch (error) {
     res.status(500).send('Internal Server Error');
@@ -51,6 +68,12 @@ router.post('/reject', async (req, res) => {
     
     await prisma.approval.update({ where: { id: approval.id }, data: { status: 'REJECTED', feedback } });
     await prisma.ticket.update({ where: { id: ticketId }, data: { status: 'REJECTED' } });
+    
+    // Notify stakeholders
+    await notifyTicketUpdate(ticketId, 'REJECTED').catch(err => {
+      console.error('Failed to send ticket update notification:', err);
+    });
+
     res.status(200).send('Rejected successfully');
   } catch (error) {
     res.status(500).send('Internal Server Error');

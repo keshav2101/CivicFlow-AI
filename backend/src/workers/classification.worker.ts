@@ -5,6 +5,7 @@ import { NormalizedEvent } from '../channels/types';
 import { applyPolicy } from '../services/policy';
 import { runThinkPipeline } from '../services/think';
 import { createTicketAndRoute } from '../services/routing';
+import { notifyTicketUpdate } from '../services/notification';
 import { transcribeAudio } from '../services/ai';
 import { redactPII } from '../utils/pii';
 import { documentsQueue } from './queues';
@@ -43,22 +44,32 @@ export const classificationWorker = new Worker('classification', async job => {
   const user = await prisma.user.findFirst();
   if (!org || !user) throw new Error("Database not seeded with root Organization or User.");
   
-  // 5. Routing & Ticket Creation
+  // 5. Routing & Ticket Creation (Applying Agentic Automation)
   const ticket = await createTicketAndRoute(org.id, user.id, {
     request_type: extractedData.type,
     amount: extractedData.amount,
     urgency: extractedData.urgency,
     category: extractedData.category,
-    rawText: safeText
+    rawText: safeText,
+    status: extractedData.suggestedAction === 'APPROVE' ? 'APPROVED' : 'PENDING'
   });
   
   // Store the LLM Explanation (Reasoning)
+  const resolutionText = extractedData.suggestedAction === 'APPROVE' 
+    ? `System Agent: Autonomous approval based on policy. ${extractedData.explanation}`
+    : extractedData.explanation;
+
   await prisma.ticket.update({
     where: { id: ticket.id },
-    data: { explanation: { reasoning: extractedData.explanation } }
+    data: { 
+      explanation: { 
+        reasoning: resolutionText,
+        suggestedAction: extractedData.suggestedAction
+      } 
+    }
   });
   
-  console.log(`[ClassificationWorker] Assessed and Ticket created: ${ticket.id}`);
+  console.log(`[ClassificationWorker] Assessed (${extractedData.suggestedAction}) and Ticket created: ${ticket.id}`);
 
   // 6. Hand off to asynchronous Document Workflow worker
   if (ticket.type === 'MOU' || ticket.type === 'INVOICE' || ticket.type === 'REIMBURSEMENT') {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, use, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -77,6 +77,31 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     }
   };
 
+  const handleClauseAction = async (clauseId: string, action: string, constraints?: string) => {
+    setIsProcessing(true);
+    try {
+      const res = await fetch(`http://localhost:4000/review/clause`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+           clauseId, 
+           partyId: ticket?.approvals?.[0]?.approverId || 'system',
+           action, 
+           constraints 
+        }),
+      });
+      if (res.ok) {
+        showToast(`Clause ${action} successfully.`);
+      } else {
+        showToast(`Failed to ${action} clause.`);
+      }
+    } catch (err) {
+      showToast('Clause action failed.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   if (!ticket) return (
     <div className="py-20 flex flex-col items-center gap-4">
       <p className="text-2xl font-bold text-slate-300">Ticket not found</p>
@@ -86,7 +111,26 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     </div>
   );
 
-  const clauses = ticket.clauses ?? [];
+  // ── Flatten nested MoU data for the UI ──────────────────────────────────────
+  const clauses = useMemo(() => {
+    if (ticket.type !== 'MOU' || !ticket.documents?.[0]?.clauses) return [];
+    
+    return (ticket.documents[0].clauses as any[]).map(clause => {
+      const latest = clause.revisions?.[0] || {};
+      const original = clause.revisions?.find((r:any) => r.version === 1) || latest;
+      
+      return {
+        id: clause.id,
+        title: clause.title || "Untitled Clause",
+        status: clause.statusPartyA === 'APPROVED' && clause.statusPartyB === 'APPROVED' ? 'APPROVED' : 'PENDING',
+        updatedAt: clause.updatedAt,
+        preview: latest.text?.slice(0, 80) + '...',
+        original: original.text || "",
+        revised: latest.text || "",
+        explanation: latest.explanation?.reasoning || "AI recommendation based on standard organizational policy."
+      };
+    });
+  }, [ticket]);
 
   return (
     <div className="py-6 pb-16 max-w-4xl mx-auto space-y-5 relative">
@@ -175,7 +219,8 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
               <ClauseCard key={clause.id} clause={clause}
                 open={expanded === clause.id}
                 onToggle={() => setExpanded(expanded === clause.id ? null : clause.id)}
-                onAction={showToast}/>
+                onAction={handleClauseAction}
+                isProcessing={isProcessing}/>
             ))}
           </div>
         </div>
@@ -244,17 +289,17 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
                     {[
                       { label:'System AI Guard',   sub:'PII check + classification', done:true },
                       { label:'Policy Engine',     sub:'Threshold rules validated',  done:true },
-                      { label: ticket.assignee,    sub: ticket.sla === 'Breached' ? 'SLA Breached' : 'In review', done:false, breach: ticket.sla === 'Breached' },
-                      { label:'Counter-signature', sub:'Waiting',                   done:false },
+                      { label: ticket.approvals?.[0]?.approver?.name || 'Assigned Approver', sub: ticket.status === 'APPROVED' ? 'Policy Resolved' : 'Awaiting Review', done: ticket.status === 'APPROVED' },
+                      { label:'Resolution',        sub: ticket.status === 'APPROVED' ? 'Finalized' : 'Pending', done: ticket.status === 'APPROVED' },
                     ].map((step, i) => (
                       <li key={i} className="relative flex items-start gap-3">
                         <span className={`absolute -left-[14px] mt-0.5 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center
-                          ${step.done ? 'bg-emerald-500' : step.breach ? 'bg-red-400 animate-pulse' : 'bg-slate-300'}`}>
+                          ${step.done ? 'bg-emerald-500' : 'bg-slate-300'}`}>
                           {step.done && <CheckCircle2 size={10} className="text-white"/>}
                         </span>
                         <div>
                           <p className="text-sm font-semibold text-slate-800">{step.label}</p>
-                          <p className={`text-xs mt-0.5 ${step.breach ? 'text-red-500 font-bold' : 'text-slate-400'}`}>{step.sub}</p>
+                          <p className={`text-xs mt-0.5 text-slate-400`}>{step.sub}</p>
                         </div>
                       </li>
                     ))}
@@ -302,12 +347,13 @@ function InfoBlock({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ClauseCard({ clause, open, onToggle, onAction }: {
-  clause: Clause; open: boolean; onToggle: () => void; onAction: (msg: string) => void;
+function ClauseCard({ clause, open, onToggle, onAction, isProcessing }: {
+  clause: any; open: boolean; onToggle: () => void; onAction: (id: string, action: string, constraints?: string) => void; isProcessing: boolean;
 }) {
   const [suggest, setSuggest] = useState(false);
   const [text, setText] = useState('');
-  const cfg = STATUS_CONFIG[clause.status];
+  const statusKey = (clause.status as keyof typeof STATUS_CONFIG) || 'PENDING';
+  const cfg = STATUS_CONFIG[statusKey];
 
   return (
     <div className={`bg-white rounded-2xl border transition-all duration-200 shadow-sm overflow-hidden
@@ -372,17 +418,24 @@ function ClauseCard({ clause, open, onToggle, onAction }: {
               </AnimatePresence>
 
               <div className="flex items-center gap-2 pt-1">
-                <button onClick={() => onAction(`"${clause.title}" approved.`)}
-                  className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm">Approve</button>
-                <button onClick={() => onAction(`"${clause.title}" rejected.`)}
-                  className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 text-sm font-bold rounded-xl hover:bg-red-100 transition-colors">Reject</button>
+                <button 
+                  onClick={() => onAction(clause.id, 'approve')}
+                  disabled={isProcessing}
+                  className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50">Approve</button>
+                <button 
+                  onClick={() => onAction(clause.id, 'reject')}
+                  disabled={isProcessing}
+                  className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 text-sm font-bold rounded-xl hover:bg-red-100 transition-colors disabled:opacity-50">Reject</button>
                 <button onClick={() => setSuggest(v=>!v)}
-                  className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                  disabled={isProcessing}
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50">
                   {suggest ? 'Cancel' : 'Suggest Change'}
                 </button>
                 {suggest && text.trim() && (
-                  <button onClick={() => { onAction('AI negotiation queued.'); setSuggest(false); setText(''); }}
-                    className="ml-auto px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">Send to AI →</button>
+                  <button 
+                    onClick={() => { onAction(clause.id, 'rewrite', text); setSuggest(false); setText(''); }}
+                    disabled={isProcessing}
+                    className="ml-auto px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50">Send to AI →</button>
                 )}
               </div>
             </div>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Home, Ticket, BarChart3, ShieldCheck, Settings, LogOut, ChevronRight, BookOpen } from 'lucide-react';
 
 import { DEMO_TICKETS } from '@/lib/demo-data';
@@ -17,6 +18,17 @@ const NAV = [
 
 export default function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
+  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('civicflow_user');
+    if (saved) {
+      setUser(JSON.parse(saved));
+    }
+  }, []);
+
+  const displayName = user?.name || 'Sarah Jenkins';
+  const displayRole = user?.role || 'Admin';
 
   return (
     <aside className={`bg-white flex-col h-full ${className}`}>
@@ -71,13 +83,13 @@ export default function Sidebar({ className }: { className?: string }) {
 
         {/* User footer */}
         <div className="mt-3 flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-slate-50 cursor-pointer group transition-colors">
-          <img src="https://ui-avatars.com/api/?name=Sarah+Jenkins&background=6366f1&color=fff&bold=true&size=48"
+          <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=6366f1&color=fff&bold=true&size=48`}
             className="w-8 h-8 rounded-full shadow-sm flex-shrink-0" alt="User"/>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-slate-800 leading-tight truncate">Sarah Jenkins</p>
-            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide">Admin</p>
+            <p className="text-sm font-bold text-slate-800 leading-tight truncate">{displayName}</p>
+            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide">{displayRole}</p>
           </div>
-          <Link href="/login">
+          <Link href="/login" onClick={() => localStorage.removeItem('civicflow_user')}>
             <LogOut size={15} className="text-slate-300 group-hover:text-red-400 transition-colors flex-shrink-0"/>
           </Link>
         </div>
