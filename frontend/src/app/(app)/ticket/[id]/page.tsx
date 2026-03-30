@@ -9,6 +9,8 @@ import {
   ArrowLeft, CreditCard, FileText, Handshake, MessageSquareWarning
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import useSWR, { mutate } from 'swr';
+import { fetcher, API_ROUTES } from '@/lib/api';
 import { getTicketById, DEMO_TICKETS, type Clause } from '@/lib/demo-data';
 
 const STATUS_CONFIG = {
@@ -32,14 +34,47 @@ const PRIORITY_COLOR: Record<string, string> = {
 
 export default function TicketPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const ticket = getTicketById(id);
+  
+  // Real data fetch
+  const { data: tickets } = useSWR(API_ROUTES.TICKETS, fetcher);
+  const ticket = tickets?.find((t: any) => t.id === id) || getTicketById(id);
+  
   const [expanded, setExpanded]   = useState<string | null>(null);
   const [sidebarOpen, setSidebar] = useState(false);
   const [toast, setToast]         = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleAction = async (action: 'approve' | 'reject', feedback?: string) => {
+    if (!ticket) return;
+    setIsProcessing(true);
+    try {
+      const endpoint = action === 'approve' ? API_ROUTES.APPROVE : API_ROUTES.REJECT;
+      const res = await fetch(`http://localhost:4000${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          ticketId: ticket.id, 
+          approverId: ticket.approvals?.[0]?.approverId || 'demo-user-id',
+          stepIndex: 1,
+          feedback 
+        }),
+      });
+      if (res.ok) {
+        showToast(`Ticket ${action === 'approve' ? 'approved' : 'rejected'} successfully.`);
+        mutate(API_ROUTES.TICKETS);
+      } else {
+        showToast(`Failed to ${action} ticket.`);
+      }
+    } catch (err) {
+      showToast('Action failed. Check console.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (!ticket) return (
@@ -77,8 +112,8 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
           <div className="flex-1 min-w-0">
             <div className="flex items-center flex-wrap gap-2 mb-2">
               <span className="text-xs font-bold text-slate-400 font-mono">{ticket.id}</span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${PRIORITY_COLOR[ticket.priority]}`}>
-                {ticket.priority} PRIORITY
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${PRIORITY_COLOR[ticket.urgency] || 'bg-slate-50 text-slate-500'}`}>
+                {ticket.urgency} PRIORITY
               </span>
               <span className="flex items-center gap-1 text-xs font-semibold text-slate-500">
                 {TYPE_ICON[ticket.type]} {ticket.type.replace('REIMBURSEMENT','REIMBURSEMENT')}
@@ -94,18 +129,20 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
                 </span>
               )}
             </div>
-            <h1 className="text-xl font-extrabold text-slate-900 leading-tight">{ticket.title}</h1>
+            <h1 className="text-xl font-extrabold text-slate-900 leading-tight">
+              {ticket.type} Request — {ticket.id.slice(0, 8)}
+            </h1>
             <p className="text-sm text-slate-500 mt-1.5 flex items-center gap-3 flex-wrap">
-              <span className="flex items-center gap-1"><User size={13}/> {ticket.requester}</span>
-              <span>→ {ticket.assignee}</span>
+              <span className="flex items-center gap-1"><User size={13}/> {ticket.requester?.name || 'Unknown'}</span>
+              <span>→ Finance Queue</span>
               {ticket.amount && (
                 <span className="font-bold text-slate-700">${ticket.amount.toLocaleString()}</span>
               )}
-              <span>{formatDistanceToNow(ticket.submittedAt)} ago</span>
+              <span>{formatDistanceToNow(new Date(ticket.createdAt))} ago</span>
             </p>
             {/* Summary */}
-            <p className="text-sm text-slate-600 mt-3 leading-relaxed bg-slate-50 rounded-xl p-3 border border-slate-100">
-              {ticket.summary}
+            <p className="text-sm text-slate-600 mt-3 leading-relaxed bg-slate-50 rounded-xl p-3 border border-slate-100 italic">
+              "{ticket.rawText}"
             </p>
           </div>
 
@@ -114,13 +151,13 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
               className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 transition-colors" title="Details">
               <PanelRight size={18}/>
             </button>
-            <button onClick={() => showToast('Ticket escalated.')}
+            <button onClick={() => handleAction('reject')} disabled={isProcessing}
               className="px-4 py-2 border border-slate-200 text-sm font-semibold text-slate-700 rounded-xl hover:bg-slate-50 transition-colors">
-              Escalate
+              Reject
             </button>
-            <button onClick={() => showToast('Ticket approved!')}
-              className="px-5 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
-              Approve All
+            <button onClick={() => handleAction('approve')} disabled={isProcessing}
+              className={`px-5 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm ${isProcessing ? 'opacity-50' : ''}`}>
+              {isProcessing ? 'Processing...' : 'Approve All'}
             </button>
           </div>
         </div>
@@ -134,7 +171,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Clauses ({clauses.length})</h2>
           </div>
           <div className="space-y-3">
-            {clauses.map(clause => (
+            {clauses.map((clause: any) => (
               <ClauseCard key={clause.id} clause={clause}
                 open={expanded === clause.id}
                 onToggle={() => setExpanded(expanded === clause.id ? null : clause.id)}
@@ -149,38 +186,34 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <InfoBlock label="Type"       value={ticket.type} />
             <InfoBlock label="Status"     value={ticket.status} />
-            <InfoBlock label="Assignee"   value={ticket.assignee} />
-            <InfoBlock label="SLA"        value={ticket.dueIn} />
+            <InfoBlock label="Requester"  value={ticket.requester?.name || 'Unknown'} />
+            <InfoBlock label="Org"        value={ticket.organization?.name || 'N/A'} />
             {ticket.amount && <InfoBlock label="Amount" value={`$${ticket.amount.toLocaleString()}`}/>}
-            <InfoBlock label="Tags"       value={ticket.tags.join(', ')} />
+            <InfoBlock label="SLA"        value="On Track" />
           </div>
           {/* AI explanation */}
           <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 space-y-2">
             <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider flex items-center gap-1.5">
-              <BrainCircuit size={13}/> AI Decision
+              <BrainCircuit size={13}/> AI Reasoning Trace
             </p>
-            <p className="text-sm text-slate-700 font-medium">{ticket.explanation.routing}</p>
-            <p className="text-xs text-slate-500">{ticket.explanation.classification}</p>
-            {ticket.explanation.fallback && (
-              <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-lg">⚡ Fallback: {ticket.explanation.fallback}</p>
-            )}
-            {ticket.explanation.learning && (
-              <p className="text-xs text-violet-700 bg-violet-50 px-2 py-1 rounded-lg">🧠 {ticket.explanation.learning}</p>
+            <p className="text-sm text-slate-700 font-medium">
+              {ticket.explanation?.reasoning || 'No reasoning trace available for this classification.'}
+            </p>
+            {ticket.explanation?.explanation && (
+                <p className="text-xs text-slate-500 mt-2 p-2 bg-white/50 rounded-lg italic">
+                    "{ticket.explanation.explanation}"
+                </p>
             )}
           </div>
           {/* Actions */}
           <div className="flex gap-2 pt-1">
-            <button onClick={() => showToast('Request approved!')}
-              className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm">
+            <button onClick={() => handleAction('approve')} disabled={isProcessing || ticket.status === 'APPROVED'}
+              className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm">
               Approve
             </button>
-            <button onClick={() => showToast('Request rejected.')}
-              className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 text-sm font-bold rounded-xl hover:bg-red-100 transition-colors">
+            <button onClick={() => handleAction('reject')} disabled={isProcessing || ticket.status === 'REJECTED'}
+              className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 text-sm font-bold rounded-xl hover:bg-red-100 disabled:opacity-50 transition-colors">
               Reject
-            </button>
-            <button onClick={() => showToast('Request escalated.')}
-              className="px-4 py-2 text-slate-600 border border-slate-200 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors">
-              Escalate
             </button>
           </div>
         </div>
@@ -229,31 +262,21 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
                 </div>
 
                 {/* AI Explainability */}
-                <CollapsibleSection icon={<BrainCircuit size={14}/>} title="AI Reasoning">
+                <CollapsibleSection icon={<BrainCircuit size={14}/>} title="AI Reasoning" defaultOpen>
                   <div className="space-y-2.5 text-sm">
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                      <p className="font-semibold text-slate-800">{ticket.explanation.routing}</p>
+                      <p className="font-semibold text-slate-800 italic">"{(ticket.explanation as any)?.reasoning || ticket.explanation.routing}"</p>
                     </div>
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                      <p className="text-slate-600 text-xs">{ticket.explanation.classification}</p>
+                      <p className="text-slate-600 text-xs">{(ticket.explanation as any)?.classification || 'Extraction complete'}</p>
                     </div>
-                    {ticket.explanation.fallback && (
-                      <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-                        <p className="text-amber-700 text-xs font-semibold">⚡ {ticket.explanation.fallback}</p>
-                      </div>
-                    )}
-                    {ticket.explanation.learning && (
-                      <div className="bg-violet-50 rounded-xl p-3 border border-violet-100">
-                        <p className="text-violet-700 text-xs font-semibold">🧠 {ticket.explanation.learning}</p>
-                      </div>
-                    )}
                   </div>
                 </CollapsibleSection>
 
                 {/* Audit trail */}
                 <CollapsibleSection icon={<GitCommit size={14}/>} title="Audit Trail">
                   <ul className="text-xs text-slate-500 space-y-2 font-mono">
-                    {ticket.auditLog.map((log, i) => (
+                    {(ticket.auditLog || []).map((log: any, i: number) => (
                       <li key={i} className={log.event.toLowerCase().includes('breach') || log.event.toLowerCase().includes('escalat')
                         ? 'text-red-500 font-bold' : ''}>
                         <span className="text-slate-300 mr-2">{log.time}</span>{log.event}
@@ -370,8 +393,8 @@ function ClauseCard({ clause, open, onToggle, onAction }: {
   );
 }
 
-function CollapsibleSection({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+function CollapsibleSection({ title, icon, children, defaultOpen = false }: { title: string; icon: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="border border-slate-100 rounded-xl overflow-hidden">
       <button onClick={() => setOpen(v=>!v)}

@@ -53,11 +53,11 @@ A high-density Next.js web ecosystem providing immediate validation states.
 ## 💻 Tech Stack
 | Tier | Technology Suite | Purpose |
 | :--- | :--- | :--- |
-| **Frontend** | React, Next.js 16 (App Router), Tailwind V4 | High-density Web Application Interface |
-| **Motion** | Framer Motion & Lucide React | Micro-interactions and interface rendering |
+| **Frontend** | React, Next.js 15 (App Router), Tailwind V4 | High-density Web Application Interface |
 | **Backend** | Node.js (TypeScript) & Express | Scalable microservices handling ingress ingestion |
+| **Intelligence**| Google Gemini 1.5 Pro | Structured intent mapping and entity extraction |
+| **Voice** | Deepgram Nova-2 | High-accuracy audio transcription |
 | **Database** | PostgreSQL + Prisma ORM | Relational typing schemas and JSON store |
-| **Intelligence**| OpenAI API (GPT-4o) | Intent mapping and Generative Entity Extractions |
 
 ---
 
@@ -109,6 +109,12 @@ npm run dev
 ```
 
 The system will report live on [`http://localhost:3000`](http://localhost:3000). The native admin dashboard can be accessed directly by simulating a demo login natively.
+
+---
+
+## 🐳 Docker Deployment (Recommended)
+For a streamlined setup using Docker containers for PostgreSQL and Redis:
+See the **[run.md](./run.md)** file for step-by-step Docker instructions.
 
 ---
 

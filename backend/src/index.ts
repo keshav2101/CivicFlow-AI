@@ -8,6 +8,7 @@ import reviewApi from './api/review';
 import metricsApi from './api/metrics';
 import explainabilityApi from './api/explainability';
 import observabilityApi from './api/observability';
+import { TelegramAdapter } from './channels/telegram';
 import './workers';
 
 dotenv.config();
@@ -29,6 +30,9 @@ app.use('/system', observabilityApi);
 
 const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`CivicFlow API listening on port ${PORT}`);
+  
+  // Initialize Omni-Channel Listeners
+  await TelegramAdapter.init();
 });

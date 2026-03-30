@@ -3,10 +3,12 @@ import IORedis from 'ioredis';
 import { PrismaClient } from '@prisma/client';
 import { NormalizedEvent } from '../channels/types';
 import { applyPolicy } from '../services/policy';
-import { classifyAndExtract } from '../services/think';
+import { runThinkPipeline } from '../services/think';
 import { createTicketAndRoute } from '../services/routing';
+import { transcribeAudio } from '../services/ai';
 import { redactPII } from '../utils/pii';
 import { documentsQueue } from './queues';
+import fs from 'fs';
 
 const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', { maxRetriesPerRequest: null });
 const prisma = new PrismaClient();
@@ -15,14 +17,25 @@ export const classificationWorker = new Worker('classification', async job => {
   const event = job.data as NormalizedEvent;
   console.log(`[ClassificationWorker] Processing event ${event.id}`);
 
-  // 1. PII Redaction securely stripped before sending to LLM
-  const safeText = redactPII(event.rawText);
+  // 1. Voice Transcription (if applicable)
+  let rawText = event.rawText;
+  if (event.voicePath && fs.existsSync(event.voicePath)) {
+    console.log(`[ClassificationWorker] Transcribing voice memo for event ${event.id}`);
+    const transcription = await transcribeAudio(event.voicePath);
+    rawText = transcription;
+    
+    // Cleanup temporary audio file
+    try { fs.unlinkSync(event.voicePath); } catch (e) { console.error('Failed to cleanup voice file:', e); }
+  }
 
-  // 2. Policy Engine Validate 
+  // 2. PII Redaction securely stripped before sending to LLM
+  const safeText = redactPII(rawText);
+
+  // 3. Policy Engine Validate 
   await applyPolicy(safeText, event);
 
-  // 3. Classification
-  const extractedData = await classifyAndExtract(safeText);
+  // 4. Classification & Nerve Engine Extraction (Gemini)
+  const extractedData = await runThinkPipeline(safeText, event.senderId); // Using senderId as org context proxy for now
   console.log(`[ClassificationWorker] Extracted Data:`, extractedData);
 
   // 4. Resolving Demo User and Org
@@ -32,11 +45,17 @@ export const classificationWorker = new Worker('classification', async job => {
   
   // 5. Routing & Ticket Creation
   const ticket = await createTicketAndRoute(org.id, user.id, {
-    request_type: extractedData.request_type as any,
+    request_type: extractedData.type,
     amount: extractedData.amount,
-    urgency: extractedData.urgency as any,
+    urgency: extractedData.urgency,
     category: extractedData.category,
     rawText: safeText
+  });
+  
+  // Store the LLM Explanation (Reasoning)
+  await prisma.ticket.update({
+    where: { id: ticket.id },
+    data: { explanation: { reasoning: extractedData.explanation } }
   });
   
   console.log(`[ClassificationWorker] Assessed and Ticket created: ${ticket.id}`);

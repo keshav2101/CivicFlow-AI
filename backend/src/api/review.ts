@@ -5,6 +5,30 @@ import { negotiationQueue } from '../workers/queues';
 const prisma = new PrismaClient();
 const router = Router();
 
+router.get('/tickets', async (req, res) => {
+  try {
+    const tickets = await prisma.ticket.findMany({
+      include: {
+        requester: true,
+        organization: true,
+        approvals: {
+          include: {
+            approver: true
+          }
+        },
+        documents: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+    res.json(tickets);
+  } catch (error) {
+    console.error('Error fetching tickets:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 router.post('/approve', async (req, res) => {
   try {
     const { ticketId, approverId, stepIndex } = req.body;

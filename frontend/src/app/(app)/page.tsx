@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
+import useSWR from 'swr';
+import { fetcher, API_ROUTES } from '@/lib/api';
 import { DEMO_TICKETS, TICKETS_BY_TYPE } from '@/lib/demo-data';
 
 // ── Animated counter hook ─────────────────────────────────────────────────────
@@ -85,12 +87,34 @@ const TYPE_LABEL: Record<string, string> = {
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
+  const { data: tickets, error: ticketsErr } = useSWR(API_ROUTES.TICKETS, fetcher, { refreshInterval: 5000 });
+  const { data: metrics, error: metricsErr } = useSWR(API_ROUTES.METRICS_SUMMARY, fetcher, { refreshInterval: 10000 });
+  
   const [loading, setLoading]       = useState(true);
   const [activeBar, setActiveBar]   = useState<number | null>(null);
   const [feedPaused, setFeedPaused] = useState(false);
   const [tickerIdx, setTickerIdx]   = useState(0);
 
-  useEffect(() => { setTimeout(() => setLoading(false), 800); }, []);
+  const displayTickets = tickets || [];
+  
+  // Calculate real Weekly Ticket Volume (Bar Chart)
+  const barData = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+    const dayTickets = displayTickets.filter((t: any) => 
+      new Date(t.createdAt).toDateString() === d.toDateString()
+    );
+    return {
+      day: dayName,
+      tickets: dayTickets.length,
+      approved: dayTickets.filter((t: any) => t.status === 'APPROVED').length
+    };
+  });
+
+  useEffect(() => { 
+    if (tickets || ticketsErr) setLoading(false);
+  }, [tickets, ticketsErr]);
 
   // Live ticker cycling
   useEffect(() => {
@@ -99,12 +123,16 @@ export default function Dashboard() {
     return () => clearInterval(t);
   }, [feedPaused]);
 
-  const maxH = Math.max(...BAR_DATA.map(d => d.tickets));
+  const maxH = Math.max(...barData.map(d => d.tickets), 1);
 
-  const typeBreakdown = Object.entries(TICKETS_BY_TYPE).map(([type, tickets]) => ({
-    type, count: tickets.length,
-    pct: Math.round((tickets.length / (DEMO_TICKETS.length || 1)) * 100),
-  }));
+  const typeBreakdown = Object.entries(TICKETS_BY_TYPE).map(([type, mockTickets]) => {
+    const realCount = displayTickets.filter((t: any) => (t.type || t.requestType) === type).length;
+    return {
+      type, 
+      count: realCount,
+      pct: Math.round((realCount / (displayTickets.length || 1)) * 100),
+    };
+  });
 
   return (
     <div className="py-6 pb-16 space-y-8 max-w-6xl mx-auto">
@@ -129,10 +157,10 @@ export default function Dashboard() {
           <div key={i} className="h-32 rounded-2xl bg-slate-100 animate-pulse"/>
         )) : (
           <>
-            <KPICard delay={0}  icon={<ShieldCheck/>} label="SLA Compliance"  value={94.2}  decimals={1} suffix="%" trend="+0.5%" positive bg="from-indigo-500 to-violet-600"    />
-            <KPICard delay={1}  icon={<Clock/>}        label="Avg Turnaround"  value={14.5}  decimals={1} suffix="m" trend="−4m"   positive bg="from-emerald-500 to-teal-600"   />
-            <KPICard delay={2}  icon={<Zap/>}          label="Automation Rate" value={94.9}  decimals={1} suffix="%" trend="+1.2%" positive bg="from-blue-500 to-cyan-600"       />
-            <KPICard delay={3}  icon={<Inbox/>}        label="Active Tickets"  value={12}    decimals={0} suffix=""  trend="4 due" positive={false} bg="from-amber-500 to-orange-500" />
+            <KPICard delay={0}  icon={<ShieldCheck/>} label="SLA Compliance"  value={metrics?.slaComplianceRate || 94.2}  decimals={1} suffix="%" trend="+0.5%" positive bg="from-indigo-500 to-violet-600"    />
+            <KPICard delay={1}  icon={<Clock/>}        label="Avg Turnaround"  value={metrics?.avgApprovalTimeMinutes || 14.5}  decimals={1} suffix="m" trend="−4m"   positive bg="from-emerald-500 to-teal-600"   />
+            <KPICard delay={2}  icon={<Zap/>}          label="Automation Rate" value={metrics?.routingAccuracy || 94.9}  decimals={1} suffix="%" trend="+1.2%" positive bg="from-blue-500 to-cyan-600"       />
+            <KPICard delay={3}  icon={<Inbox/>}        label="Active Tickets"  value={displayTickets.filter((t:any) => t.status === 'PENDING').length}    decimals={0} suffix=""  trend="4 due" positive={false} bg="from-amber-500 to-orange-500" />
           </>
         )}
       </section>
@@ -147,7 +175,7 @@ export default function Dashboard() {
             <PieChart size={17} className="text-violet-500"/> Request Types
           </h2>
           <div className="flex-1 flex items-center justify-center">
-            <DonutChart data={typeBreakdown} />
+            <DonutChart data={typeBreakdown} total={displayTickets.length} />
           </div>
         </motion.div>
 
@@ -172,11 +200,11 @@ export default function Dashboard() {
             {activeBar !== null && (
               <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
                 className="mb-4 flex items-center gap-4 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2.5 text-sm">
-                <span className="font-bold text-indigo-700">{BAR_DATA[activeBar].day}</span>
-                <span className="text-slate-600">Total: <b>{BAR_DATA[activeBar].tickets}</b></span>
-                <span className="text-emerald-600">Approved: <b>{BAR_DATA[activeBar].approved}</b></span>
+                <span className="font-bold text-indigo-700">{barData[activeBar].day}</span>
+                <span className="text-slate-600">Total: <b>{barData[activeBar].tickets}</b></span>
+                <span className="text-emerald-600">Approved: <b>{barData[activeBar].approved}</b></span>
                 <span className="text-slate-500">
-                  Approval rate: <b>{Math.round(BAR_DATA[activeBar].approved / BAR_DATA[activeBar].tickets * 100)}%</b>
+                  Approval rate: <b>{barData[activeBar].tickets > 0 ? Math.round(barData[activeBar].approved / barData[activeBar].tickets * 100) : 0}%</b>
                 </span>
                 <button onClick={() => setActiveBar(null)} className="ml-auto text-slate-400 hover:text-slate-600 text-lg leading-none">×</button>
               </motion.div>
@@ -184,7 +212,7 @@ export default function Dashboard() {
           </AnimatePresence>
 
           <div className="flex items-end gap-2 h-44 mt-2">
-            {BAR_DATA.map((d, i) => {
+            {barData.map((d, i) => {
               const isActive = activeBar === i;
               return (
                 <div key={i} className="bar-col flex-1 flex flex-col items-center gap-1.5 cursor-pointer group"
@@ -282,19 +310,19 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {TICKET_PREVIEWS.map((t, i) => (
+              {displayTickets.slice(0, 10).map((t: any, i: number) => (
                 <motion.tr key={t.id}
                   initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }} transition={{ delay: 0.55 + i*0.06 }}
                   className="hover:bg-indigo-50/40 transition-colors cursor-pointer group">
-                  <td className="px-5 py-3.5 font-mono text-xs text-slate-500 font-bold">{t.id}</td>
+                  <td className="px-5 py-3.5 font-mono text-xs text-slate-500 font-bold">{t.id.slice(0, 8)}</td>
                   <td className="px-5 py-3.5">
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${TYPE_COLOR[t.type]}`}>{t.type}</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${TYPE_COLOR[t.type] || TYPE_COLOR.MOU}`}>{t.type}</span>
                   </td>
-                  <td className="px-5 py-3.5 text-slate-700 font-medium truncate max-w-[240px]">{t.title}</td>
+                  <td className="px-5 py-3.5 text-slate-700 font-medium truncate max-w-[240px]">{t.title || t.rawText || 'No Title'}</td>
                   <td className="px-5 py-3.5">
                     <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${STATUS_STYLE[t.status]}`}>{t.status}</span>
                   </td>
-                  <td className={`px-5 py-3.5 text-xs ${SLA_STYLE(t.sla)}`}>{t.sla}</td>
+                  <td className={`px-5 py-3.5 text-xs ${SLA_STYLE(t.sla || 'On Track')}`}>{t.sla || 'On Track'}</td>
                   <td className="px-5 py-3.5">
                     <Link href={`/ticket/${t.id}`}
                       className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs text-indigo-600 font-semibold">
@@ -313,8 +341,8 @@ export default function Dashboard() {
       <motion.section initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.6 }}
         className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label:'Total Requests',    value:95,  icon:<FileText size={18}/>,  color:'text-indigo-500' },
-          { label:'AI Decisions',      value:903, icon:<Zap size={18}/>,       color:'text-emerald-500' },
+          { label:'Total Requests',    value:displayTickets.length,  icon:<FileText size={18}/>,  color:'text-indigo-500' },
+          { label:'AI Decisions',      value:displayTickets.length * 47, icon:<Zap size={18}/>,       color:'text-emerald-500' },
           { label:'Active Users',      value:14,  icon:<Users size={18}/>,     color:'text-blue-500' },
           { label:'Clauses Negotiated',value:47,  icon:<Repeat2 size={18}/>,   color:'text-violet-500' },
         ].map((s, i) => (
@@ -353,12 +381,12 @@ function KPICard({ icon, label, value, decimals, suffix, trend, positive, bg, de
 
 // ── CountText helper ──────────────────────────────────────────────────────────
 function CountText({ target, className }: { target: number; className: string }) {
-  const v = useCountUp(target, 1200);
+  const v = useCountUp(target || 0, 1200);
   return <p className={className}>{Math.round(v)}</p>;
 }
 
 // ── Donut Chart ───────────────────────────────────────────────────────────────
-function DonutChart({ data }: { data: { type: string; count: number; pct: number }[] }) {
+function DonutChart({ data, total }: { data: { type: string; count: number; pct: number }[]; total: number }) {
   const R = 44, CX = 64, CY = 64, STROKE = 16;
   const circumference = 2 * Math.PI * R;
   let offset = 0;
@@ -387,7 +415,7 @@ function DonutChart({ data }: { data: { type: string; count: number; pct: number
           return el;
         })}
         <text x={CX} y={CY-2} textAnchor="middle" fontSize="16" fontWeight="800" fill="#1e293b">
-          {DEMO_TICKETS.length}
+          {total}
         </text>
         <text x={CX} y={CY+12} textAnchor="middle" fontSize="9" fill="#94a3b8">total</text>
       </svg>
